@@ -28,6 +28,7 @@ set(${PROJECT_NAME}_SRCS
     timestamp.cpp
 
     vpninfo.cpp
+    tunnelroutes.cpp
 
     logger.cpp
 

@@ -39,6 +39,10 @@ if(NOT WIN32)
 				)
 				string(STRIP ${output} output)
 				set(OPENCONNECT_VPNC_SCRIPT "${output}/../etc/vpnc-script")
+				if(NOT EXISTS "${OPENCONNECT_VPNC_SCRIPT}")
+					# Homebrew now installs the script under etc/vpnc/
+					set(OPENCONNECT_VPNC_SCRIPT "${output}/../etc/vpnc/vpnc-script")
+				endif()
 			else()
 				execute_process(
 					COMMAND ${OPENCONNECT_EXECUTABLE} -help

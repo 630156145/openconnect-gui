@@ -49,6 +49,8 @@ private slots:
     void on_tokenClear_clicked();
     void on_groupnameClear_clicked();
     void on_loadWinCert_clicked();
+    void on_importRoutesButton_clicked();
+    void on_exportRoutesButton_clicked();
 
     void on_groupnameEdit_textChanged(const QString& arg1);
     void on_caCertEdit_textChanged(const QString& arg1);
@@ -59,6 +61,7 @@ private slots:
 
 private:
     void load_win_certs();
+    void reloadRoutesPreview();
 
     struct win_cert_st {
         QString label;

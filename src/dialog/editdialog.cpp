@@ -20,11 +20,15 @@
 #include "editdialog.h"
 #include "common.h"
 #include "server_storage.h"
+#include "tunnelroutes.h"
 #include "ui_editdialog.h"
+#include <QFile>
 #include <QFileDialog>
+#include <QFileInfo>
 #include <QItemSelectionModel>
 #include <QListWidget>
 #include <QMessageBox>
+#include <QSaveFile>
 
 // FIXME: this include should to into <openconnect.h>
 #ifdef _WIN32
@@ -158,6 +162,17 @@ EditDialog::EditDialog(QString server, QWidget* parent)
     QString hash;
     ss->get_server_hash(hash);
     ui->serverCertHash->setText(hash);
+    reloadRoutesPreview();
+}
+
+void EditDialog::reloadRoutesPreview()
+{
+    QFile in(tunnelRoutesPath());
+    const bool configured = in.open(QIODevice::ReadOnly) && in.size() > 0;
+    ui->exportRoutesButton->setToolTip(configured
+            ? tr("Save the imported route list as another file.")
+            : tr("Save the example route list. Edit it, then use Import routes."));
+    ui->routesPreview->setPlainText(configured ? QString::fromUtf8(in.readAll()) : tunnelRoutesTemplate());
 }
 
 EditDialog::~EditDialog()
@@ -322,6 +337,64 @@ void EditDialog::on_groupnameClear_clicked()
 {
     ss->clear_groupname();
     ui->groupnameEdit->clear();
+}
+
+void EditDialog::on_importRoutesButton_clicked()
+{
+    const QString filename = QFileDialog::getOpenFileName(this,
+        tr("Import tunnel routes"), QString(),
+        tr("Text files (*.txt);;All files (*)"));
+    if (filename.isEmpty()) {
+        return;
+    }
+
+    QFile in(filename);
+    if (!in.open(QIODevice::ReadOnly)) {
+        QMessageBox::warning(this, tr("Import routes"), tr("Could not read %1").arg(filename));
+        return;
+    }
+    const QString text = QString::fromUtf8(in.readAll());
+    QString error;
+    int count = 0;
+    if (!tunnelRoutesTextOk(text, &error, &count)) {
+        QMessageBox::warning(this, tr("Import routes"), error);
+        return;
+    }
+
+    const QString dest = tunnelRoutesPath();
+    QSaveFile out(dest);
+    if (!out.open(QIODevice::WriteOnly) || out.write(text.toUtf8()) == -1 || !out.commit()) {
+        QMessageBox::warning(this, tr("Import routes"), tr("Could not write %1").arg(dest));
+        return;
+    }
+    reloadRoutesPreview();
+    Q_UNUSED(count);
+}
+
+void EditDialog::on_exportRoutesButton_clicked()
+{
+    const QString src = tunnelRoutesPath();
+    const bool configured = QFileInfo::exists(src) && QFileInfo(src).size() > 0;
+    const QString filename = QFileDialog::getSaveFileName(this,
+        tr("Export tunnel routes"),
+        QStringLiteral("tunnel-routes.txt"),
+        tr("Text files (*.txt);;All files (*)"));
+    if (filename.isEmpty() || (configured && QFileInfo(filename).absoluteFilePath() == QFileInfo(src).absoluteFilePath())) {
+        return;
+    }
+
+    if (configured) {
+        QFile::remove(filename);
+        if (!QFile::copy(src, filename)) {
+            QMessageBox::warning(this, tr("Export routes"), tr("Could not write %1").arg(filename));
+        }
+        return;
+    }
+
+    QSaveFile out(filename);
+    if (!out.open(QIODevice::WriteOnly) || out.write(tunnelRoutesTemplate().toUtf8()) == -1 || !out.commit()) {
+        QMessageBox::warning(this, tr("Export routes"), tr("Could not write %1").arg(filename));
+    }
 }
 
 void EditDialog::on_loadWinCert_clicked()

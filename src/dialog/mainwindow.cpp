@@ -606,9 +606,8 @@ static void main_loop(VpnInfo* vpninfo, MainWindow* m)
     vpninfo->mainloop();
 
 fail: // LCA: drop this 'goto' and optimize values...
-    m->vpn_status_changed(STATUS_DISCONNECTED);
-
     delete vpninfo;
+    m->vpn_status_changed(STATUS_DISCONNECTED);
 }
 
 void MainWindow::on_disconnectClicked()

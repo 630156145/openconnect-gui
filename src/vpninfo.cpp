@@ -26,6 +26,7 @@
 #include "gtdb.h"
 #include "logger.h"
 #include "server_storage.h"
+#include "tunnelroutes.h"
 
 #include <QDir>
 
@@ -377,7 +378,25 @@ static void setup_tun_vfn(void* privdata)
         //FIXME: ???        return ret;
     }
 
+    const char* ifname = openconnect_get_ifname(vpn->vpninfo);
+    if (ifname != nullptr && ifname[0] != '\0') {
+        tunnelRoutesSetIfname(QString::fromLatin1(ifname));
+        tunnelRoutesEnsure();
+        tunnelRoutesStartKeeper();
+    }
+
     vpn->logVpncScriptOutput();
+}
+
+static void reconnected_vfn(void* privdata)
+{
+    VpnInfo* vpn = static_cast<VpnInfo*>(privdata);
+    const char* ifname = openconnect_get_ifname(vpn->vpninfo);
+    if (ifname == nullptr || ifname[0] == '\0') {
+        return;
+    }
+    tunnelRoutesSetIfname(QString::fromLatin1(ifname));
+    tunnelRoutesEnsure();
 }
 
 static inline int set_sock_block(int fd)
@@ -423,10 +442,12 @@ VpnInfo::VpnInfo(QString name, StoredServer* ss, MainWindow* m)
     openconnect_set_protocol(vpninfo, ss->get_protocol());
 
     openconnect_set_setup_tun_handler(vpninfo, setup_tun_vfn);
+    openconnect_set_reconnected_handler(vpninfo, reconnected_vfn);
 }
 
 VpnInfo::~VpnInfo()
 {
+    tunnelRoutesStop();
     if (vpninfo != nullptr) {
         openconnect_vpninfo_free(vpninfo);
     }
